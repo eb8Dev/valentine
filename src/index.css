@@ -1,0 +1,42 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@layer base {
+  html {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    color: #2d1720;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: #fffafa;
+  }
+}
+
+@theme {
+  --font-serif: "DM Serif Display", serif;
+  --font-sans: "Space Grotesk", sans-serif;
+  --font-cinzel: "Cinzel", serif;
+  --font-courier: "Courier Prime", monospace;
+  --font-dancing: "Dancing Script", cursive;
+  --font-playfair: "Playfair Display", serif;
+}
+
+/* Custom scrollbar for a cuter look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fffafa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ffd1dc;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffafc1;
+}
