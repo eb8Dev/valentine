@@ -1,27 +1,26 @@
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 
-export const config = {
-  runtime: 'edge',
-};
+export default async function handler(req, res) {
+  const { id } = req.query;
+  if (!id) return res.status(400).send('Missing ID');
 
-export default async function handler(req) {
-  const url = new URL(req.url);
-  const id = url.searchParams.get('id');
-
-  if (!id) return new Response('Missing ID', { status: 400 });
+  const redis = new Redis(process.env.REDIS_URL);
 
   try {
-    const data = await kv.get(`valentine:${id}`);
-    
-    if (!data) {
-        return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+    if (!process.env.REDIS_URL) {
+        throw new Error("REDIS_URL missing");
     }
 
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { 'content-type': 'application/json' }
-    });
+    const data = await redis.get(`valentine:${id}`);
+    await redis.quit();
+    
+    if (!data) {
+        return res.status(404).json({ error: 'Not found' });
+    }
+
+    return res.status(200).json(JSON.parse(data));
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Failed to fetch data' }), { status: 500 });
+    if (redis) await redis.quit();
+    return res.status(500).json({ error: 'Failed to fetch data' });
   }
 }
