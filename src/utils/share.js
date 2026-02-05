@@ -59,7 +59,9 @@ export function encodeData(data, pin = "") {
     const jsonString = JSON.stringify(minifiedData);
     
     if (pin) {
-      const encrypted = CryptoJS.AES.encrypt(jsonString, pin).toString();
+      // Compress BEFORE encrypting to reduce size and hide patterns
+      const compressed = LZString.compressToUTF16(jsonString);
+      const encrypted = CryptoJS.AES.encrypt(compressed, pin).toString();
       return `enc_${LZString.compressToEncodedURIComponent(encrypted)}`;
     }
     
@@ -84,11 +86,18 @@ export function decodeData(encodedString, pin = "") {
     let jsonString;
     
     if (isEncrypted) {
-      const decompressed = LZString.decompressFromEncodedURIComponent(payload);
-      const bytes = CryptoJS.AES.decrypt(decompressed, pin);
-      jsonString = bytes.toString(CryptoJS.enc.Utf8);
+      // Decompress URL-safe string to get the Encrypted Base64
+      const encryptedBase64 = LZString.decompressFromEncodedURIComponent(payload);
+      if (!encryptedBase64) return { success: false, error: "Link broken" };
+
+      // Decrypt to get the Compressed UTF16 string
+      const decryptedBytes = CryptoJS.AES.decrypt(encryptedBase64, pin);
+      const compressedUTF16 = decryptedBytes.toString(CryptoJS.enc.Utf8);
       
-      if (!jsonString) return { success: false, error: "Incorrect PIN" };
+      if (!compressedUTF16) return { success: false, error: "Incorrect PIN" };
+
+      // Decompress UTF16 to get JSON
+      jsonString = LZString.decompressFromUTF16(compressedUTF16);
     } else {
       jsonString = LZString.decompressFromEncodedURIComponent(payload);
     }

@@ -496,31 +496,38 @@ function App() {
   };
 
   useEffect(() => {
-    // Attempt to play audio immediately
-    if (audioRef.current) {
+    // Audio Context Unlock / Autoplay Handler
+    const attemptPlay = async () => {
+        if (!audioRef.current) return;
         audioRef.current.volume = 0.5;
-        audioRef.current.muted = isMuted;
         
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(() => {
-                // If blocked, wait for any user interaction
-                const enableAudio = () => {
-                   if(audioRef.current) {
-                       audioRef.current.play();
-                       // Remove listeners once played
-                       document.removeEventListener('click', enableAudio);
-                       document.removeEventListener('touchstart', enableAudio);
-                       document.removeEventListener('keydown', enableAudio);
-                   }
-                };
-                document.addEventListener('click', enableAudio);
-                document.addEventListener('touchstart', enableAudio);
-                document.addEventListener('keydown', enableAudio);
-            });
+        try {
+            await audioRef.current.play();
+        } catch (err) {
+            // Autoplay blocked. Wait for user interaction.
+            const unlockAudio = () => {
+                if (audioRef.current) {
+                    audioRef.current.play();
+                    ['click', 'touchstart', 'keydown'].forEach(evt => 
+                        document.removeEventListener(evt, unlockAudio)
+                    );
+                }
+            };
+            ['click', 'touchstart', 'keydown'].forEach(evt => 
+                document.addEventListener(evt, unlockAudio)
+            );
         }
+    };
+
+    attemptPlay();
+  }, []);
+
+  // Handle Mute Toggle
+  useEffect(() => {
+    if (audioRef.current) {
+        audioRef.current.muted = isMuted;
     }
-  }, [isMuted]); // Re-run if mute state changes to ensure volume/mute apply
+  }, [isMuted]);
 
   useEffect(() => {
     const handlePopState = () => setState(getInitialState());
