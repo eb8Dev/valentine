@@ -148,11 +148,14 @@ function Generator({ initial, onGenerate }) {
     let finalUrl = "";
 
     try {
+        // If PIN is set, encrypt the payload FIRST so the database never sees raw data
+        const dataToSave = pin ? encodeData(payload, pin) : payload;
+
         // Try to generate short link via Vercel KV
         const res = await fetch('/api/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(dataToSave)
         });
         
         if (res.ok) {
@@ -162,7 +165,7 @@ function Generator({ initial, onGenerate }) {
             throw new Error("KV failed");
         }
     } catch (e) {
-        // Fallback to long URL
+        // Fallback to long URL if KV is down or not configured
         console.warn("Short link generation failed, falling back to long link", e);
         const encoded = encodeData(payload, pin);
         if (encoded) {
@@ -541,7 +544,12 @@ function App() {
                 return res.json();
             })
             .then(data => {
-                setState({ ...getInitialState(), ...data, isViewing: true, isLocked: false, isLoading: false });
+                // If data is an encrypted string (from encodeData), enter locked state
+                if (typeof data === 'string' && data.startsWith("enc_")) {
+                    setState({ ...getInitialState(), isLocked: true, isViewing: true, dataString: data, isLoading: false });
+                } else {
+                    setState({ ...getInitialState(), ...data, isViewing: true, isLocked: false, isLoading: false });
+                }
             })
             .catch(err => {
                 console.error(err);

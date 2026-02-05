@@ -12,10 +12,11 @@ export default async function handler(req) {
       // Generate a short ID (7 chars is enough for millions of collisions)
       const id = nanoid(8);
       
-      // Store data with 30 days expiration (or remove ex for permanent)
-      // Since it's a valentine app, maybe keep it longer or permanent? 
-      // Vercel KV free tier limits are generous for text.
+      // Store data
       await kv.set(`valentine:${id}`, data);
+      
+      // Increment global counter
+      await kv.incr('valentine:stats:total_generated');
       
       return new Response(JSON.stringify({ id, success: true }), {
         status: 200,
