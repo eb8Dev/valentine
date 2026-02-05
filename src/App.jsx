@@ -430,6 +430,10 @@ function Generator({ initial, onGenerate }) {
            </div>
         </div>
       </main>
+
+      <footer className="max-w-6xl mx-auto px-6 py-12 text-center border-t border-gray-100">
+         <p className="text-gray-300 font-serif italic text-xl tracking-tight opacity-40">Created by eb with ❤️</p>
+      </footer>
     </div>
   );
 }
@@ -467,6 +471,8 @@ function LockScreen({ onUnlock, error }) {
   );
 }
 
+import { Analytics } from "@vercel/analytics/react";
+
 function App() {
   const [state, setState] = useState(getInitialState());
   const [lockError, setLockError] = useState("");
@@ -481,6 +487,7 @@ function App() {
     if (!state.dataString) return;
     const result = decodeData(state.dataString, pin);
     if (result.success) {
+      // Merge defaults again to ensure structure
       setState({ ...getInitialState(), ...result.data, isViewing: true, isLocked: false });
       setLockError("");
     } else {
@@ -540,6 +547,7 @@ function App() {
 
   return (
     <AnimatePresence mode="wait">
+      <Analytics />
       <audio ref={audioRef} src={music} loop />
       {state.isViewing && (
         <button
@@ -556,8 +564,9 @@ function App() {
           {...state} 
           template={mockTemplate} 
           onBack={() => {
-            setState(prev => ({ ...prev, isViewing: false }));
+            // Clear URL and State to ensure privacy
             window.history.pushState({}, "", window.location.origin + window.location.pathname);
+            setState(getInitialState()); 
           }} 
         />
       ) : (
