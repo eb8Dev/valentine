@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { Heart, Calendar, Star, ArrowDown, Music } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -86,7 +87,7 @@ export default function Timeline({ from, to, msg, moments = [], photos = [], que
             >
                 {/* Hero Section */}
                 <section className="min-h-screen flex flex-col items-center justify-center p-8 relative">
-                    <div className="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-rose-200 via-transparent to-transparent"></div>
+                    <div className="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-rose-200 via-transparent to-transparent"></div>
                     
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
@@ -166,7 +167,7 @@ export default function Timeline({ from, to, msg, moments = [], photos = [], que
                 {/* The Big Question / Final Message */}
                 <section className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-slate-900 text-white relative overflow-hidden">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-rose-900/50 to-transparent pointer-events-none"></div>
+                    <div className="absolute inset-0 bg-linear-to-t from-rose-900/50 to-transparent pointer-events-none"></div>
 
                     <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}

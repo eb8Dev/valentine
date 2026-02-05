@@ -496,35 +496,31 @@ function App() {
   };
 
   useEffect(() => {
+    // Attempt to play audio immediately
     if (audioRef.current) {
         audioRef.current.volume = 0.5;
         audioRef.current.muted = isMuted;
-    }
-  }, [isMuted]);
-
-  useEffect(() => {
-    if (!audioRef.current) return;
-
-    if (state.isViewing) {
+        
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
             playPromise.catch(() => {
+                // If blocked, wait for any user interaction
                 const enableAudio = () => {
-                   if(state.isViewing && audioRef.current) {
+                   if(audioRef.current) {
                        audioRef.current.play();
+                       // Remove listeners once played
                        document.removeEventListener('click', enableAudio);
                        document.removeEventListener('touchstart', enableAudio);
+                       document.removeEventListener('keydown', enableAudio);
                    }
                 };
                 document.addEventListener('click', enableAudio);
                 document.addEventListener('touchstart', enableAudio);
+                document.addEventListener('keydown', enableAudio);
             });
         }
-    } else {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
     }
-  }, [state.isViewing]);
+  }, [isMuted]); // Re-run if mute state changes to ensure volume/mute apply
 
   useEffect(() => {
     const handlePopState = () => setState(getInitialState());
@@ -549,15 +545,15 @@ function App() {
     <AnimatePresence mode="wait">
       <Analytics />
       <audio ref={audioRef} src={music} loop />
-      {state.isViewing && (
-        <button
-            onClick={() => setIsMuted(!isMuted)}
-            className="fixed bottom-6 right-6 z-60 p-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-full text-white/70 hover:bg-black/40 hover:text-white transition-all hover:scale-110 active:scale-95"
-            title={isMuted ? "Unmute" : "Mute"}
-        >
-            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-        </button>
-      )}
+      
+      <button
+          onClick={() => setIsMuted(!isMuted)}
+          className="fixed bottom-6 right-6 z-60 p-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-full text-white/70 hover:bg-black/40 hover:text-white transition-all hover:scale-110 active:scale-95"
+          title={isMuted ? "Unmute" : "Mute"}
+      >
+          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+      </button>
+
       {state.isViewing ? (
         <WorldComponent 
           key="view" 

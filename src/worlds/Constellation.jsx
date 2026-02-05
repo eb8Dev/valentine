@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, Heart, ArrowRight, Sparkles } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -128,7 +129,7 @@ export default function Constellation({ from, to, msg, reasons = [], moments = [
       <StarField />
       
       {/* Background radial gradient */}
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-950/40 via-[#050b14] to-[#050b14] -z-20"></div>
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-indigo-950/40 via-[#050b14] to-[#050b14] -z-20"></div>
 
       {/* Constellation Lines */}
       <div className="fixed inset-0 pointer-events-none flex items-center justify-center">
@@ -165,10 +166,10 @@ export default function Constellation({ from, to, msg, reasons = [], moments = [
               <motion.div 
                 animate={{ rotate: 360 }} 
                 transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-                className="w-[1px] h-[1px] shadow-[0_0_100px_40px_rgba(251,191,36,0.2)] rounded-full mx-auto"
+                className="w-px h-px shadow-[0_0_100px_40px_rgba(251,191,36,0.2)] rounded-full mx-auto"
               ></motion.div>
               <h2 className="text-amber-200/60 text-sm tracking-[0.5em] uppercase">{template?.title || "A Journey For"}</h2>
-              <h1 className="text-5xl md:text-7xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-500/50 filter drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">
+              <h1 className="text-5xl md:text-7xl font-bold tracking-widest text-transparent bg-clip-text bg-linear-to-b from-amber-100 to-amber-500/50 filter drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">
                 {to}
               </h1>
               <p className="text-lg text-white/60 font-sans font-light max-w-md mx-auto leading-relaxed">
@@ -224,13 +225,13 @@ export default function Constellation({ from, to, msg, reasons = [], moments = [
                  initial={{ scale: 0 }} 
                  animate={{ scale: 1 }} 
                  transition={{ type: "spring", stiffness: 100, delay: 0.2 }}
-                 className="w-32 h-32 mx-auto bg-gradient-to-tr from-amber-400 to-orange-600 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(245,158,11,0.5)]"
+                 className="w-32 h-32 mx-auto bg-linear-to-tr from-amber-400 to-orange-600 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(245,158,11,0.5)]"
                >
                  <Heart size={64} className="text-white fill-white" />
                </motion.div>
                
                <div>
-                 <h1 className="text-6xl md:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-amber-200/50">
+                 <h1 className="text-6xl md:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-linear-to-b from-white to-amber-200/50">
                    {to}
                  </h1>
                  <p className="mt-6 text-xl md:text-3xl text-amber-100 font-light italic">

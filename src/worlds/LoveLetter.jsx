@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, ArrowRight, X } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -109,8 +110,8 @@ export default function LoveLetter({ from, to, msg, reasons = [], moments = [], 
           >
              <div className="w-80 h-52 bg-[#fdfbf7] shadow-2xl rounded-lg flex items-center justify-center relative overflow-hidden border border-gray-200">
                {/* Envelope Flap */}
-               <div className="absolute top-0 left-0 w-full h-full border-l-[160px] border-r-[160px] border-t-[140px] border-l-transparent border-r-transparent border-t-red-50/50 z-10"></div>
-               <div className="absolute bottom-0 left-0 w-full h-full border-l-[160px] border-r-[160px] border-b-[140px] border-l-transparent border-r-transparent border-b-[#fdfbf7] z-20 shadow-sm"></div>
+               <div className="absolute top-0 left-0 w-full h-full border-l-160 border-r-160 border-t-140 border-l-transparent border-r-transparent border-t-red-50/50 z-10"></div>
+               <div className="absolute bottom-0 left-0 w-full h-full border-l-160 border-r-160 border-b-140 border-l-transparent border-r-transparent border-b-[#fdfbf7] z-20 shadow-sm"></div>
                
                {/* Wax Seal */}
                <motion.div 
@@ -144,7 +145,7 @@ export default function LoveLetter({ from, to, msg, reasons = [], moments = [], 
                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400">To: {to}</p>
               </div>
 
-              <div className="min-h-[200px]">
+              <div className="min-h-50">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
@@ -205,7 +206,7 @@ export default function LoveLetter({ from, to, msg, reasons = [], moments = [], 
                         </p>
                         <div className="pt-12">
                           <p className="font-dancing text-2xl text-gray-500">Forever yours,</p>
-                          <p className="font-dancing text-5xl mt-2 rotate-[-2deg]" style={{ color: accentColor }}>{from}</p>
+                          <p className="font-dancing text-5xl mt-2 -rotate-2" style={{ color: accentColor }}>{from}</p>
                         </div>
                       </div>
                     )}
