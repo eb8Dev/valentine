@@ -57,20 +57,31 @@ function ConstellationLine({ from, to, visible }) {
   );
 }
 
-export default function Constellation({ from, to, msg, reasons, about, whyValentine, template, onBack }) {
+export default function Constellation({ from, to, msg, reasons = [], moments = [], about, template, onBack }) {
   const [step, setStep] = useState(0);
   
-  // Define the journey: Intro -> About -> Reasons (one by one) -> Why Valentine -> Final
+  // Consolidate reasons and moments for the "Stars" journey
+  const starsContent = useMemo(() => {
+    // Prefer moments if available, else reasons
+    if (moments && moments.length > 0) {
+      return moments.map(m => ({
+        text: m.title ? `${m.title}: ${m.description}` : m.description,
+        photo: m.photo
+      }));
+    }
+    return reasons.map(r => ({ text: r, photo: null }));
+  }, [reasons, moments]);
+
+  // Define the journey: Intro -> About -> Stars (one by one) -> Final
   const journey = useMemo(() => {
     const steps = [
       { type: 'intro' },
       ...(about ? [{ type: 'about' }] : []),
-      ...reasons.map((r, i) => ({ type: 'reason', content: r, index: i })),
-      ...(whyValentine ? [{ type: 'whyValentine' }] : []),
+      ...starsContent.map((item, i) => ({ type: 'star', content: item.text, photo: item.photo, index: i })),
       { type: 'final' }
     ];
     return steps;
-  }, [about, reasons, whyValentine]);
+  }, [about, starsContent]);
 
   const [starPositions] = useState(() => {
     return Array.from({ length: 20 }).map(() => ({
@@ -156,12 +167,12 @@ export default function Constellation({ from, to, msg, reasons, about, whyValent
                 transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
                 className="w-[1px] h-[1px] shadow-[0_0_100px_40px_rgba(251,191,36,0.2)] rounded-full mx-auto"
               ></motion.div>
-              <h2 className="text-amber-200/60 text-sm tracking-[0.5em] uppercase">{template.title || "A Journey For"}</h2>
+              <h2 className="text-amber-200/60 text-sm tracking-[0.5em] uppercase">{template?.title || "A Journey For"}</h2>
               <h1 className="text-5xl md:text-7xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-500/50 filter drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">
                 {to}
               </h1>
               <p className="text-lg text-white/60 font-sans font-light max-w-md mx-auto leading-relaxed">
-                "{template.description || "Look at the stars. Look how they shine for you."}"
+                "{template?.description || "Look at the stars. Look how they shine for you."}"
               </p>
               <button onClick={nextStep} className="group relative px-8 py-3 bg-transparent overflow-hidden rounded-full border border-amber-500/30 hover:border-amber-500/80 transition-all mt-8">
                 <div className="absolute inset-0 bg-amber-500/10 group-hover:bg-amber-500/20 transition-all"></div>
@@ -185,30 +196,24 @@ export default function Constellation({ from, to, msg, reasons, about, whyValent
             </div>
           )}
 
-          {currentStep.type === 'reason' && (
-            <div className="relative">
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-amber-500/20">
+          {currentStep.type === 'star' && (
+            <div className="relative flex flex-col items-center gap-8">
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-amber-500/20 -z-10">
                 <Star size={100} strokeWidth={0.5} />
               </div>
-              <h3 className="text-amber-200/40 text-xs tracking-[0.4em] uppercase mb-6">Star #{currentStep.index + 1}</h3>
-              <p className="text-2xl md:text-4xl font-bold tracking-wide leading-tight text-white drop-shadow-lg">
+              <h3 className="text-amber-200/40 text-xs tracking-[0.4em] uppercase">Star #{currentStep.index + 1}</h3>
+              
+              {currentStep.photo && (
+                <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+                    <img src={currentStep.photo} alt="Memory" className="w-full h-full object-cover" />
+                </div>
+              )}
+
+              <p className="text-2xl md:text-4xl font-bold tracking-wide leading-tight text-white drop-shadow-lg max-w-lg">
                 {currentStep.content}
               </p>
-               <button onClick={nextStep} className="mt-12 mx-auto w-12 h-12 rounded-full border border-amber-500/30 flex items-center justify-center hover:bg-amber-500/20 hover:scale-110 transition-all">
+               <button onClick={nextStep} className="mt-4 mx-auto w-12 h-12 rounded-full border border-amber-500/30 flex items-center justify-center hover:bg-amber-500/20 hover:scale-110 transition-all">
                 <Star size={16} className="text-amber-200 fill-amber-200" />
-              </button>
-            </div>
-          )}
-
-          {currentStep.type === 'whyValentine' && (
-            <div className="space-y-6 bg-indigo-950/30 p-10 rounded-[40px] border border-indigo-500/20 backdrop-blur-md">
-              <h3 className="text-indigo-200/40 text-xs tracking-[0.4em] uppercase">The Alignment</h3>
-              <p className="text-xl text-indigo-300 font-serif italic mb-4">{template.question}</p>
-              <p className="text-2xl md:text-4xl font-light leading-snug text-indigo-100 font-serif italic">
-                "{whyValentine}"
-              </p>
-              <button onClick={nextStep} className="mx-auto mt-6 w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center hover:bg-indigo-500/40 transition-all">
-                <ArrowRight size={16} className="text-indigo-200" />
               </button>
             </div>
           )}
@@ -229,8 +234,9 @@ export default function Constellation({ from, to, msg, reasons, about, whyValent
                    {to}
                  </h1>
                  <p className="mt-6 text-xl md:text-3xl text-amber-100 font-light italic">
-                   "{msg}"
+                   "{template?.question || "Will you be my Valentine?"}"
                  </p>
+                 <p className="mt-4 text-lg text-white/50">"{msg}"</p>
                </div>
 
                <div className="pt-12 border-t border-white/5 mt-8">

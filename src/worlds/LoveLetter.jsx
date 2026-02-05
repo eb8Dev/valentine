@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, ArrowRight, X } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -24,17 +24,37 @@ function TypewriterText({ text, speed = 30, onComplete, className }) {
   return <p className={className}>{displayed}</p>;
 }
 
-export default function LoveLetter({ from, to, msg, reasons, about, whyValentine, template, onBack }) {
-  const [step, setStep] = useState(0); // 0: Envelope, 1: Letter Open (About), 2: Reasons, 3: Why Val, 4: Final
+export default function LoveLetter({ from, to, msg, reasons = [], moments = [], about, whyValentine, template, onBack }) {
+  const [step, setStep] = useState(0); // 0: Envelope, 1: Letter Open (About), 2: Reasons/Moments, 3: Why Val, 4: Final
+
+  const contentList = useMemo(() => {
+    // Prefer moments if available, else reasons
+    if (moments && moments.length > 0) {
+       return { 
+         title: "Our Cherished Moments", 
+         items: moments.map(m => ({
+            text: m.title ? `${m.title}: ${m.description}` : m.description,
+            photo: m.photo
+         })) 
+       };
+    }
+    return { 
+        title: "Reasons I Adore You", 
+        items: reasons.map(r => ({ text: r, photo: null })) 
+    };
+  }, [moments, reasons]);
 
   // Step logic
-  const steps = [
-    { id: 'envelope' },
-    ...(about ? [{ id: 'about', content: about }] : []),
-    ...(reasons.length > 0 ? [{ id: 'reasons', content: reasons }] : []),
-    ...(whyValentine ? [{ id: 'whyValentine', content: whyValentine }] : []),
-    { id: 'final', content: msg }
-  ];
+  const steps = useMemo(() => {
+    const list = [
+      { id: 'envelope' },
+      ...(about ? [{ id: 'about', content: about }] : []),
+      ...(contentList.items.length > 0 ? [{ id: 'list', title: contentList.title, content: contentList.items }] : []),
+      ...(whyValentine ? [{ id: 'whyValentine', content: whyValentine }] : []),
+      { id: 'final', content: msg }
+    ];
+    return list;
+  }, [about, contentList, whyValentine, msg]);
 
   const currentStepData = steps[step] || steps[0];
   const accentColor = template?.accent || '#991b1b'; // Default to deep red
@@ -139,19 +159,27 @@ export default function LoveLetter({ from, to, msg, reasons, about, whyValentine
                       </div>
                     )}
 
-                    {currentStepData.id === 'reasons' && (
+                    {currentStepData.id === 'list' && (
                       <div className="space-y-4">
-                        <p className="text-sm font-bold uppercase tracking-widest opacity-60 mb-4" style={{ color: accentColor }}>Reasons I Adore You</p>
-                        <ul className="space-y-4">
-                          {currentStepData.content.map((r, i) => (
+                        <p className="text-sm font-bold uppercase tracking-widest opacity-60 mb-4" style={{ color: accentColor }}>{currentStepData.title}</p>
+                        <ul className="space-y-6">
+                          {currentStepData.content.map((item, i) => (
                             <motion.li 
                               key={i}
                               initial={{ x: -10, opacity: 0 }}
                               animate={{ x: 0, opacity: 1 }}
                               transition={{ delay: i * 0.5 }}
-                              className="flex gap-3 text-lg leading-snug text-gray-700"
+                              className="flex gap-4 items-start text-lg leading-snug text-gray-700"
                             >
-                              <span className="font-bold" style={{ color: accentColor }}>—</span> {r}
+                                <span className="font-bold mt-1" style={{ color: accentColor }}>—</span>
+                                <div className="space-y-2">
+                                    <span>{item.text}</span>
+                                    {item.photo && (
+                                        <div className="block w-24 h-24 rotate-2 border-4 border-white shadow-sm overflow-hidden bg-gray-100">
+                                            <img src={item.photo} alt="Memory" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                </div>
                             </motion.li>
                           ))}
                         </ul>
@@ -160,7 +188,7 @@ export default function LoveLetter({ from, to, msg, reasons, about, whyValentine
 
                     {currentStepData.id === 'whyValentine' && (
                       <div className="space-y-6">
-                        <p className="font-playfair text-2xl italic text-gray-800 text-center">"{template.question}"</p>
+                        <p className="font-playfair text-2xl italic text-gray-800 text-center">"{template?.question || "Will you be my Valentine?"}"</p>
                         <div 
                           className="p-6 border-l-2 italic text-gray-700 leading-relaxed text-lg"
                           style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}40` }}
