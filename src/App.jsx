@@ -54,6 +54,7 @@ const worlds = {
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
   const dataParam = params.get("data");
+  const idParam = params.get("id");
 
   const defaults = {
     from: "", 
@@ -63,11 +64,15 @@ function getInitialState() {
     question: "Will you be my Valentine?",
     about: "",
     reasons: [], 
-    moments: [], // { date, title, description }
-    photos: [], // URLs
+    moments: [], 
+    photos: [], 
     isViewing: false, 
     isLocked: false
   };
+
+  if (idParam) {
+      return { ...defaults, isLoading: true, id: idParam };
+  }
 
   if (dataParam) {
     const decoded = decodeData(dataParam);
@@ -75,7 +80,6 @@ function getInitialState() {
       return { ...defaults, isLocked: true, isViewing: true, dataString: dataParam };
     }
     if (decoded.success) {
-      // Merge decoded data with defaults to ensure new fields exist
       return { ...defaults, ...decoded.data, isViewing: true, isLocked: false };
     }
   }
@@ -85,13 +89,14 @@ function getInitialState() {
 
 function Generator({ initial, onGenerate }) {
   const [data, setData] = useState(initial);
-  const [step, setStep] = useState(0); // 0: World, 1: Basics, 2: Story, 3: Photos, 4: Share
+  const [step, setStep] = useState(0); 
   const [pin, setPin] = useState("");
   const [copied, setCopied] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   
   const steps = ["Experience", "Basics", "Story", "Memories", "Share"];
 
-  // Moment management
+  // ... (keep moment/photo management functions as is) ...
   const addMoment = () => {
     setData(prev => ({
       ...prev,
@@ -109,7 +114,6 @@ function Generator({ initial, onGenerate }) {
     setData({ ...data, moments: data.moments.filter((_, i) => i !== index) });
   };
 
-  // Photo management
   const addPhoto = () => {
     setData(prev => ({ ...prev, photos: [...prev.photos, ""] }));
   };
@@ -124,34 +128,62 @@ function Generator({ initial, onGenerate }) {
     setData({ ...data, photos: data.photos.filter((_, i) => i !== index) });
   };
 
+  const updateField = (field, value) => setData(prev => ({ ...prev, [field]: value }));
 
-  const shareLink = useMemo(() => {
-    // Filter empty moments & photos
+  const getPayload = () => {
     const cleanMoments = data.moments.filter(m => m.title || m.description);
     const cleanPhotos = data.photos.filter(p => p.trim());
     const payload = { ...data, moments: cleanMoments, photos: cleanPhotos };
-    
-    // Remove UI flags
     delete payload.isViewing;
     delete payload.isLocked;
     delete payload.dataString;
-
-    const encoded = encodeData(payload, pin);
-    if (!encoded) return "";
-    const url = new URL(window.location.origin + window.location.pathname);
-    url.searchParams.set("data", encoded);
-    return url.toString();
-  }, [data, pin]);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) { console.error(err); }
+    delete payload.isLoading;
+    delete payload.id;
+    return payload;
   };
 
-  const updateField = (field, value) => setData(prev => ({ ...prev, [field]: value }));
+  const handleCopy = async () => {
+    setIsGeneratingLink(true);
+    const payload = getPayload();
+    let finalUrl = "";
+
+    try {
+        // Try to generate short link via Vercel KV
+        const res = await fetch('/api/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            const { id } = await res.json();
+            finalUrl = `${window.location.origin}/?id=${id}`;
+        } else {
+            throw new Error("KV failed");
+        }
+    } catch (e) {
+        // Fallback to long URL
+        console.warn("Short link generation failed, falling back to long link", e);
+        const encoded = encodeData(payload, pin);
+        if (encoded) {
+            const url = new URL(window.location.origin + window.location.pathname);
+            url.searchParams.set("data", encoded);
+            finalUrl = url.toString();
+        }
+    }
+
+    if (finalUrl) {
+        try {
+            await navigator.clipboard.writeText(finalUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) { console.error(err); }
+    }
+    setIsGeneratingLink(false);
+  };
+
+  // ... rest of render ...
+
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-[#1a1a1a] font-sans selection:bg-rose-100 selection:text-rose-600 overflow-x-hidden flex flex-col">
@@ -383,8 +415,14 @@ function Generator({ initial, onGenerate }) {
                          </div>
 
                          <div className="flex items-center gap-4 p-4 bg-gray-900 text-white rounded-3xl shadow-xl overflow-hidden mt-8">
-                            <div className="flex-1 truncate text-xs font-mono px-4 text-gray-400">{shareLink}</div>
-                            <button onClick={handleCopy} className="shrink-0 bg-white text-black py-3 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-rose-500 hover:text-white transition-all flex items-center gap-2 active:scale-95">
+                            <div className="flex-1 truncate text-xs font-mono px-4 text-gray-400">
+                                {isGeneratingLink ? "Generating short link..." : "Ready to share"}
+                            </div>
+                            <button 
+                                onClick={handleCopy} 
+                                disabled={isGeneratingLink}
+                                className="shrink-0 bg-white text-black py-3 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-rose-500 hover:text-white transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                            >
                                 {copied ? "Copied!" : "Copy Link"}
                             </button>
                          </div>
@@ -496,6 +534,23 @@ function App() {
   };
 
   useEffect(() => {
+    if (state.id && state.isLoading) {
+        fetch(`/api/get?id=${state.id}`)
+            .then(res => {
+                if (!res.ok) throw new Error("Not found");
+                return res.json();
+            })
+            .then(data => {
+                setState({ ...getInitialState(), ...data, isViewing: true, isLocked: false, isLoading: false });
+            })
+            .catch(err => {
+                console.error(err);
+                setState(prev => ({ ...prev, isLoading: false, error: "Failed to load journey." }));
+            });
+    }
+  }, [state.id]);
+
+  useEffect(() => {
     // Audio Context Unlock / Autoplay Handler
     const attemptPlay = async () => {
         if (!audioRef.current) return;
@@ -549,33 +604,35 @@ function App() {
   }
 
   return (
-    <AnimatePresence mode="wait">
+    <>
       <Analytics />
       <audio ref={audioRef} src={music} loop />
       
       <button
           onClick={() => setIsMuted(!isMuted)}
-          className="fixed bottom-6 right-6 z-60 p-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-full text-white/70 hover:bg-black/40 hover:text-white transition-all hover:scale-110 active:scale-95"
+          className="fixed bottom-6 right-6 z-[60] p-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-full text-white/70 hover:bg-black/40 hover:text-white transition-all hover:scale-110 active:scale-95"
           title={isMuted ? "Unmute" : "Mute"}
       >
           {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
       </button>
 
-      {state.isViewing ? (
-        <WorldComponent 
-          key="view" 
-          {...state} 
-          template={mockTemplate} 
-          onBack={() => {
-            // Clear URL and State to ensure privacy
-            window.history.pushState({}, "", window.location.origin + window.location.pathname);
-            setState(getInitialState()); 
-          }} 
-        />
-      ) : (
-        <Generator key="gen" initial={state} onGenerate={handleGenerate} />
-      )}
-    </AnimatePresence>
+      <AnimatePresence mode="wait">
+        {state.isViewing ? (
+          <WorldComponent 
+            key="view" 
+            {...state} 
+            template={mockTemplate} 
+            onBack={() => {
+              // Clear URL and State to ensure privacy
+              window.history.pushState({}, "", window.location.origin + window.location.pathname);
+              setState(getInitialState()); 
+            }} 
+          />
+        ) : (
+          <Generator key="gen" initial={state} onGenerate={handleGenerate} />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
