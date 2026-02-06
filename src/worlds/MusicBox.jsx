@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
-import { Disc, Play, Pause, SkipForward, SkipBack, Music, Heart } from "lucide-react";
+import { Disc, Play, Pause, SkipForward, SkipBack, Music } from "lucide-react";
 
 export default function MusicBox({ from, to, msg, moments = [], photos = [], question, onBack }) {
     const [isPlaying, setIsPlaying] = useState(false);
@@ -8,10 +9,40 @@ export default function MusicBox({ from, to, msg, moments = [], photos = [], que
     const [progress, setProgress] = useState(0);
 
     // Prepare "Tracks" from moments
-    const tracks = moments.length > 0 ? moments : [
-        { title: "Our First Hello", description: "The start of something beautiful.", date: "Track 01" },
-        { title: "Unforgettable", description: "Every day with you is a hit song.", date: "Track 02" }
-    ];
+    const tracks = useMemo(() => {
+        const baseMoments = moments.length > 0 ? moments : [
+            { title: "Our First Hello", description: "The start of something beautiful.", date: "Track 01" },
+            { title: "Unforgettable", description: "Every day with you is a hit song.", date: "Track 02" }
+        ];
+
+        const combined = [];
+        let photoIndex = 0;
+
+        // 1. Existing moments
+        baseMoments.forEach((m, i) => {
+             let p = m.photo;
+             if (!p && photos.length > 0) {
+                 p = photos[photoIndex % photos.length];
+                 photoIndex++;
+             }
+             combined.push({ ...m, photo: p, date: m.date || `Track 0${i+1}` });
+        });
+
+        // 2. Extra photos
+        if (photos.length > photoIndex) {
+            const extraPhotos = photos.slice(photoIndex);
+            extraPhotos.forEach((p, i) => {
+                combined.push({
+                    title: "Bonus Track",
+                    description: "Another beautiful memory.",
+                    date: `Bonus ${i + 1}`,
+                    photo: p
+                });
+            });
+        }
+        
+        return combined;
+    }, [moments, photos]);
 
     // Add final proposal as a hidden track or special state? 
     // Let's make the final track the proposal.
@@ -25,7 +56,7 @@ export default function MusicBox({ from, to, msg, moments = [], photos = [], que
     ];
 
     const activeTrack = allTracks[currentTrack];
-    const activePhoto = activeTrack.photo || photos[currentTrack % photos.length]; // Prefer track photo
+    const activePhoto = activeTrack.photo; // Pre-calculated in tracks useMemo
 
     useEffect(() => {
         let interval;

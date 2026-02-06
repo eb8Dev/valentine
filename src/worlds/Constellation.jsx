@@ -58,20 +58,42 @@ function ConstellationLine({ from, to, visible }) {
   );
 }
 
-export default function Constellation({ from, to, msg, reasons = [], moments = [], about, template, onBack }) {
+export default function Constellation({ from, to, msg, reasons = [], moments = [], photos = [], about, template, onBack }) {
   const [step, setStep] = useState(0);
   
-  // Consolidate reasons and moments for the "Stars" journey
+  // Consolidate reasons, moments, and photos for the "Stars" journey
   const starsContent = useMemo(() => {
-    // Prefer moments if available, else reasons
+    let items = [];
+
+    // 1. Add Moments
     if (moments && moments.length > 0) {
-      return moments.map(m => ({
+      items = moments.map(m => ({
         text: m.title ? `${m.title}: ${m.description}` : m.description,
         photo: m.photo
       }));
+    } else if (reasons && reasons.length > 0) {
+       // Fallback to reasons if no moments
+       items = reasons.map(r => ({ text: r, photo: null }));
     }
-    return reasons.map(r => ({ text: r, photo: null }));
-  }, [reasons, moments]);
+
+    // 2. Add orphan Photos (photos not used in moments, or just all photos as extra stars)
+    // To avoid duplicates if moments already used the photos, we could filter, 
+    // but simpler to just add them as "Memory" stars if we want to ensure they are seen.
+    // Let's add independent photos that likely aren't in the moments.
+    // Or simpler: Just append all photos from the 'photos' prop as extra stars.
+    // To avoid overwhelming, we can check if the photo is already used? 
+    // No, standard behavior: Show 'moments' then show 'photos' (Memories).
+    
+    if (photos && photos.length > 0) {
+       const photoStars = photos.map(p => ({
+          text: "A beautiful memory...",
+          photo: p
+       }));
+       items = [...items, ...photoStars];
+    }
+
+    return items;
+  }, [reasons, moments, photos]);
 
   // Define the journey: Intro -> About -> Stars (one by one) -> Final
   const journey = useMemo(() => {

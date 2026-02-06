@@ -25,25 +25,39 @@ function TypewriterText({ text, speed = 30, onComplete, className }) {
   return <p className={className}>{displayed}</p>;
 }
 
-export default function LoveLetter({ from, to, msg, reasons = [], moments = [], about, whyValentine, template, onBack }) {
+export default function LoveLetter({ from, to, msg, reasons = [], moments = [], photos = [], about, whyValentine, template, onBack }) {
   const [step, setStep] = useState(0); // 0: Envelope, 1: Letter Open (About), 2: Reasons/Moments, 3: Why Val, 4: Final
 
   const contentList = useMemo(() => {
-    // Prefer moments if available, else reasons
+    let items = [];
+    let title = "Reasons I Adore You";
+
+    // 1. Moments
     if (moments && moments.length > 0) {
-       return { 
-         title: "Our Cherished Moments", 
-         items: moments.map(m => ({
-            text: m.title ? `${m.title}: ${m.description}` : m.description,
-            photo: m.photo
-         })) 
-       };
+       title = "Our Cherished Moments";
+       items = moments.map(m => ({
+          text: m.title ? `${m.title}: ${m.description}` : m.description,
+          photo: m.photo
+       }));
+    } else {
+        items = reasons.map(r => ({ text: r, photo: null }));
     }
-    return { 
-        title: "Reasons I Adore You", 
-        items: reasons.map(r => ({ text: r, photo: null })) 
-    };
-  }, [moments, reasons]);
+
+    // 2. Photos (Memories)
+    if (photos && photos.length > 0) {
+        // If we switched to "Moments", keep that title, otherwise if we only had reasons, maybe update title?
+        // Let's keep it simple. Append photos.
+        if (items.length === 0) title = "Our Memories";
+        
+        const photoItems = photos.map(p => ({
+            text: "A special memory",
+            photo: p
+        }));
+        items = [...items, ...photoItems];
+    }
+
+    return { title, items };
+  }, [moments, reasons, photos]);
 
   // Step logic
   const steps = useMemo(() => {

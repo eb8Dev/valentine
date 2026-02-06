@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json(JSON.parse(data));
-  } catch (error) {
+  } catch {
     if (redis) await redis.quit();
     return res.status(500).json({ error: 'Failed to fetch data' });
   }

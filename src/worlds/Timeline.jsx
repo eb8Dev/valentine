@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { Heart, Calendar, Star, ArrowDown, Music } from "lucide-react";
@@ -60,11 +60,36 @@ export default function Timeline({ from, to, msg, moments = [], photos = [], que
         return () => unsubscribe();
     }, [scrollYProgress, showConfetti]);
 
-    // Ensure we have some moments if empty
-    const timelineData = moments.length > 0 ? moments : [
-        { date: "The Beginning", title: "When We Met", description: "The day my life changed forever." },
-        { date: "Today", title: "Celebrating Us", description: "Every moment with you is a gift." }
-    ];
+    const { timelineData, unusedPhotos } = useMemo(() => {
+        const baseMoments = moments.length > 0 ? moments : [
+            { date: "The Beginning", title: "When We Met", description: "The day my life changed forever." },
+            { date: "Today", title: "Celebrating Us", description: "Every moment with you is a gift." }
+        ];
+
+        const filledMoments = [];
+        let photoIndex = 0;
+
+        // 1. Fill moments with photos if missing
+        baseMoments.forEach(m => {
+            let p = m.photo;
+            if (!p && photos.length > 0) {
+                p = photos[photoIndex % photos.length];
+                photoIndex++;
+            }
+            filledMoments.push({ ...m, photo: p });
+        });
+
+        // 2. Collect unused photos
+        let extra = [];
+        if (photos.length > photoIndex) {
+            extra = photos.slice(photoIndex);
+        } else if (photos.length > 0 && photoIndex === 0) {
+             // If we didn't use any photos (e.g. all moments had their own), show all in grid
+             extra = photos;
+        }
+
+        return { timelineData: filledMoments, unusedPhotos: extra };
+    }, [moments, photos]);
 
     return (
         <div className="fixed inset-0 bg-[#fff0f3] overflow-hidden text-slate-800 font-sans selection:bg-rose-200">
@@ -154,10 +179,10 @@ export default function Timeline({ from, to, msg, moments = [], photos = [], que
                         </div>
                     ))}
                     
-                    {/* Photos Section Interspersed (if any) */}
-                    {photos.length > 0 && (
+                    {/* Photos Section (Extra Memories) */}
+                    {unusedPhotos.length > 0 && (
                          <div className="py-12 grid grid-cols-2 gap-4 rotate-2">
-                            {photos.map((url, idx) => (
+                            {unusedPhotos.map((url, idx) => (
                                 <FloatingImage key={idx} src={url} delay={idx * 0.2} className={idx % 2 === 0 ? 'translate-y-8' : '-translate-y-8'} />
                             ))}
                          </div>

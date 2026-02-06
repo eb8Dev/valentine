@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef, useMemo } from "react";
+// eslint-disable-next-line no-unused-vars
+import { motion } from "framer-motion";
 import { ArrowRight, Framer, Heart } from "lucide-react";
 
 function Frame({ moment, photo, index }) {
@@ -43,10 +44,43 @@ export default function Gallery({ from, to, msg, moments = [], photos = [], ques
     const containerRef = useRef(null);
 
     // Default exhibits if empty
-    const exhibits = moments.length > 0 ? moments : [
-        { title: "The Beginning", description: "Where art met soul.", date: "2023" },
-        { title: "The Masterpiece", description: "Building a life together.", date: "2024" }
-    ];
+    const exhibits = useMemo(() => {
+        const baseMoments = moments.length > 0 ? moments : [
+            { title: "The Beginning", description: "Where art met soul.", date: "2023" },
+            { title: "The Masterpiece", description: "Building a life together.", date: "2024" }
+        ];
+
+        // We want to use 'photos' to fill gaps in 'baseMoments', AND create new exhibits for unused photos.
+        const combined = [];
+        let photoIndex = 0;
+
+        // 1. Process existing moments
+        baseMoments.forEach(m => {
+            let p = m.photo;
+            if (!p && photos.length > 0) {
+                // Borrow a photo from the collection if the moment doesn't have one
+                p = photos[photoIndex % photos.length];
+                photoIndex++; 
+            }
+            combined.push({ ...m, photo: p });
+        });
+
+        // 2. Add remaining photos as new exhibits (only if we haven't looped/used them all yet)
+        // If photoIndex < photos.length, it means we have unused photos.
+        if (photos.length > photoIndex) {
+            const extraPhotos = photos.slice(photoIndex);
+            extraPhotos.forEach((p, i) => {
+                combined.push({
+                    title: "Captured Memory",
+                    description: "A moment frozen in time.",
+                    date: `Collection ${baseMoments.length + i + 1}`,
+                    photo: p
+                });
+            });
+        }
+        
+        return combined;
+    }, [moments, photos]);
 
     return (
         <div className="h-screen w-screen bg-neutral-100 overflow-hidden flex flex-col font-serif selection:bg-neutral-800 selection:text-white">
@@ -83,7 +117,7 @@ export default function Gallery({ from, to, msg, moments = [], photos = [], ques
 
                 {/* Exhibits */}
                 {exhibits.map((moment, i) => (
-                    <Frame key={i} moment={moment} index={i} photo={moment.photo || photos[i % photos.length]} />
+                    <Frame key={i} moment={moment} index={i} photo={moment.photo} />
                 ))}
 
                 {/* Final Wall */}

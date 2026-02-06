@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -87,14 +87,51 @@ function getInitialState() {
   return defaults;
 }
 
-function Generator({ initial, onGenerate }) {
+function Generator({ initial, onGenerate, attemptPlay }) {
   const [data, setData] = useState(initial);
   const [step, setStep] = useState(0); 
   const [pin, setPin] = useState("");
   const [copied, setCopied] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [statsCount, setStatsCount] = useState(0);
   
   const steps = ["Experience", "Basics", "Story", "Memories", "Share"];
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(data => setStatsCount(data.count || 0))
+      .catch(() => setStatsCount(124)); // Fallback
+  }, []);
+
+  const isValidUrl = (url) => {
+    if (!url) return true; // Optional field
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const canMoveForward = () => {
+    if (step === 1) {
+      return data.from.trim() && data.to.trim();
+    }
+    if (step === 3) {
+      // Validate all photos
+      return data.photos.every(p => isValidUrl(p)) && data.moments.every(m => isValidUrl(m.photo));
+    }
+    return true;
+  };
+
+  const isStepDisabled = (targetStep) => {
+    if (targetStep <= step) return false;
+    // Check if basics are filled before allowing Story (2) or beyond
+    if (targetStep > 1 && (!data.from.trim() || !data.to.trim())) return true;
+    // Add other sequential checks if needed
+    return false;
+  };
 
   // ... (keep moment/photo management functions as is) ...
   const addMoment = () => {
@@ -202,17 +239,28 @@ function Generator({ initial, onGenerate }) {
       <main className="flex-1 max-w-5xl mx-auto px-6 pb-24 w-full grid lg:grid-cols-[250px_1fr] gap-12">
         {/* Sidebar / Stepper */}
         <div className="lg:block hidden space-y-8 sticky top-24 self-start">
-            <h1 className="font-serif text-4xl leading-tight tracking-tight">
-               Craft your <br />
-               <span className="text-rose-500 italic">story</span>.
-            </h1>
+            <div className="space-y-4">
+              <h1 className="font-serif text-4xl leading-tight tracking-tight">
+                 Craft your <br />
+                 <span className="text-rose-500 italic">story</span>.
+              </h1>
+              {statsCount > 0 && (
+                <motion.p 
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="text-xs font-medium text-rose-400 bg-rose-50 inline-block px-3 py-1 rounded-full border border-rose-100"
+                >
+                  ✨ Over {statsCount} souls have shared their love
+                </motion.p>
+              )}
+            </div>
             <div className="space-y-1 relative">
                 <div className="absolute left-2.75 top-2 bottom-2 w-0.5 bg-gray-100 -z-10"></div>
                 {steps.map((label, i) => (
                     <button 
                         key={i} 
-                        onClick={() => setStep(i)}
-                        className={`flex items-center gap-4 w-full text-left py-2 group`}
+                        onClick={() => !isStepDisabled(i) && setStep(i)}
+                        disabled={isStepDisabled(i)}
+                        className={`flex items-center gap-4 w-full text-left py-2 group ${isStepDisabled(i) ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all ${step === i ? 'border-rose-500 bg-rose-500 text-white shadow-lg scale-110' : step > i ? 'border-rose-500 bg-white text-rose-500' : 'border-gray-200 bg-white text-gray-300'}`}>
                             {step > i ? '✓' : i + 1}
@@ -228,8 +276,9 @@ function Generator({ initial, onGenerate }) {
              {steps.map((label, i) => (
                  <button 
                     key={i}
-                    onClick={() => setStep(i)}
-                    className={`flex flex-col items-center gap-2 min-w-15 ${step === i ? 'text-rose-500' : 'text-gray-300'}`}
+                    onClick={() => !isStepDisabled(i) && setStep(i)}
+                    disabled={isStepDisabled(i)}
+                    className={`flex flex-col items-center gap-2 min-w-15 ${step === i ? 'text-rose-500' : isStepDisabled(i) ? 'text-gray-100' : 'text-gray-300'}`}
                  >
                      <div className={`w-2 h-2 rounded-full ${step === i ? 'bg-rose-500' : 'bg-current'}`}></div>
                      <span className="text-[10px] uppercase font-bold tracking-wider">{label}</span>
@@ -289,9 +338,41 @@ function Generator({ initial, onGenerate }) {
                                 </div>
                             </div>
                             
-                            <div className="space-y-2">
+                            <div className="space-y-4">
                                 <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">The Big Headline</label>
-                                <input value={data.question} onChange={e => updateField('question', e.target.value)} placeholder="Will you be my Valentine?" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-rose-100 outline-none transition-all text-xl font-bold text-rose-500 placeholder:text-rose-300/50" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {[
+                                        "Will you be my Valentine?",
+                                        "Will you be mine forever?",
+                                        "Be my Valentine?",
+                                        "Will you do me the honor?",
+                                        "Let's grow old together?",
+                                        "Custom Message..."
+                                    ].map((q) => (
+                                        <button
+                                            key={q}
+                                            onClick={() => updateField('question', q === "Custom Message..." ? "" : q)}
+                                            className={`px-6 py-3 rounded-2xl text-sm font-medium border-2 transition-all text-left ${
+                                                (data.question === q || (q === "Custom Message..." && !["Will you be my Valentine?", "Will you be mine forever?", "Be my Valentine?", "Will you do me the honor?", "Let's grow old together?"].includes(data.question)))
+                                                ? 'border-rose-500 bg-rose-50 text-rose-600 shadow-sm' 
+                                                : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                                            }`}
+                                        >
+                                            {q}
+                                        </button>
+                                    ))}
+                                </div>
+                                
+                                {(!["Will you be my Valentine?", "Will you be mine forever?", "Be my Valentine?", "Will you do me the honor?", "Let's grow old together?"].includes(data.question) || data.question === "") && (
+                                    <motion.input 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        value={data.question} 
+                                        onChange={e => updateField('question', e.target.value)} 
+                                        placeholder="Type your own romantic question..." 
+                                        className="w-full bg-white border-2 border-rose-100 rounded-2xl px-6 py-4 focus:border-rose-500 outline-none transition-all text-lg font-bold text-rose-500" 
+                                    />
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -334,15 +415,16 @@ function Generator({ initial, onGenerate }) {
                                         className="w-2/3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-bold focus:border-rose-300 outline-none"
                                         />
                                     </div>
-                                    <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2">
-                                        <ImageIcon size={14} className="text-gray-400" />
+                                    <div className={`flex items-center gap-3 bg-white border rounded-xl px-4 py-2 transition-all ${moment.photo && !isValidUrl(moment.photo) ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
+                                        <ImageIcon size={14} className={moment.photo && !isValidUrl(moment.photo) ? 'text-red-400' : 'text-gray-400'} />
                                         <input 
                                             value={moment.photo || ""} 
                                             onChange={e => updateMoment(idx, 'photo', e.target.value)} 
                                             placeholder="Photo URL (Optional)" 
-                                            className="w-full text-sm outline-none"
+                                            className="w-full text-sm outline-none bg-transparent"
                                         />
                                     </div>
+                                    {moment.photo && !isValidUrl(moment.photo) && <p className="text-[10px] text-red-500 font-bold uppercase mt-1">Invalid URL</p>}
                                     <textarea 
                                         value={moment.description} 
                                         onChange={e => updateMoment(idx, 'description', e.target.value)} 
@@ -369,28 +451,34 @@ function Generator({ initial, onGenerate }) {
                         initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                         className="space-y-8"
                      >
-                         <h2 className="text-2xl font-black tracking-tight">Memories</h2>
-                         <p className="text-gray-500">Paste direct image URLs (e.g., from Unsplash, Imgur, or direct links). These will be featured in your chosen world.</p>
+                         <h2 className="text-2xl font-black tracking-tight">Visual Memories</h2>
+                         <p className="text-gray-500 leading-relaxed italic">
+                           "A picture is worth a thousand words, but your memories are priceless." <br/>
+                           Paste direct image links below to weave them into your journey.
+                         </p>
                          
                          <div className="space-y-3">
                             {data.photos.map((url, idx) => (
-                                <div key={idx} className="flex gap-2 group">
-                                <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3">
-                                    <ImageIcon size={16} className="text-gray-400" />
-                                    <input 
-                                        value={url} 
-                                        onChange={e => updatePhoto(idx, e.target.value)} 
-                                        placeholder="https://example.com/image.jpg" 
-                                        className="bg-transparent w-full outline-none text-sm font-medium text-gray-700"
-                                    />
-                                </div>
-                                <button onClick={() => removePhoto(idx)} className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                                    <Trash2 size={18} />
-                                </button>
+                                <div key={idx} className="flex flex-col gap-1 group">
+                                  <div className={`flex gap-2 p-1 rounded-2xl transition-all ${url && !isValidUrl(url) ? 'bg-red-50 border-red-200 border' : ''}`}>
+                                    <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3">
+                                        <ImageIcon size={16} className="text-gray-400" />
+                                        <input 
+                                            value={url} 
+                                            onChange={e => updatePhoto(idx, e.target.value)} 
+                                            placeholder="Paste image link here..." 
+                                            className="bg-transparent w-full outline-none text-sm font-medium text-gray-700"
+                                        />
+                                    </div>
+                                    <button onClick={() => removePhoto(idx)} className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                                        <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                  {url && !isValidUrl(url) && <p className="text-[10px] text-red-500 ml-4 font-bold uppercase">Invalid URL format</p>}
                                 </div>
                             ))}
                             <button onClick={addPhoto} className="text-sm font-bold text-gray-400 hover:text-rose-500 flex items-center gap-2 transition-colors px-2 py-2">
-                                <Plus size={14} /> Add Another Photo
+                                <Plus size={14} /> Add Another Memory
                             </button>
                          </div>
                      </motion.div>
@@ -419,24 +507,15 @@ function Generator({ initial, onGenerate }) {
 
                          <div className="flex items-center gap-4 p-4 bg-gray-900 text-white rounded-3xl shadow-xl overflow-hidden mt-8">
                             <div className="flex-1 truncate text-xs font-mono px-4 text-gray-400">
-                                {isGeneratingLink ? "Generating short link..." : "Ready to share"}
+                                {isGeneratingLink ? "Generating short link..." : "Ready to seal your love"}
                             </div>
                             <button 
                                 onClick={handleCopy} 
                                 disabled={isGeneratingLink}
                                 className="shrink-0 bg-white text-black py-3 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-rose-500 hover:text-white transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
                             >
-                                {copied ? "Copied!" : "Copy Link"}
+                                {copied ? "Copied!" : "Get Link"}
                             </button>
-                         </div>
-
-                         <div className="flex justify-center pt-8">
-                             <button 
-                                onClick={() => onGenerate(data)}
-                                className="flex items-center gap-3 text-gray-400 hover:text-rose-500 transition-colors font-bold uppercase tracking-widest text-xs"
-                             >
-                                 Preview Now <ArrowRight size={14} />
-                             </button>
                          </div>
                      </motion.div>
                  )}
@@ -455,17 +534,26 @@ function Generator({ initial, onGenerate }) {
                 
                 {step < steps.length - 1 ? (
                     <button 
-                        onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))}
-                        className="px-8 py-3 bg-black text-white rounded-2xl text-sm font-bold shadow-lg hover:bg-rose-500 hover:shadow-rose-200 transition-all flex items-center gap-2"
+                        onClick={() => {
+                            attemptPlay();
+                            if (canMoveForward()) {
+                                setStep(s => Math.min(steps.length - 1, s + 1));
+                            }
+                        }}
+                        disabled={!canMoveForward()}
+                        className={`px-8 py-3 rounded-2xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${canMoveForward() ? 'bg-black text-white hover:bg-rose-500 hover:shadow-rose-200' : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'}`}
                     >
-                        Next <ArrowRight size={16} />
+                        {step === 1 && (!data.from || !data.to) ? "Enter Names" : "Next"} <ArrowRight size={16} />
                     </button>
                 ) : (
                     <button 
-                        onClick={() => onGenerate(data)}
+                        onClick={() => {
+                            attemptPlay();
+                            onGenerate(data);
+                        }}
                         className="px-8 py-3 bg-rose-500 text-white rounded-2xl text-sm font-bold shadow-lg shadow-rose-200 hover:scale-105 transition-all flex items-center gap-2"
                     >
-                        Preview Final <Stars size={16} />
+                        View Your Gift <Stars size={16} />
                     </button>
                 )}
            </div>
@@ -520,15 +608,26 @@ function App() {
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef(null);
 
+  const [hasPlayed, setHasPlayed] = useState(false);
+
+  const attemptPlay = useCallback(() => {
+    if (audioRef.current && !hasPlayed && !isMuted) {
+      audioRef.current.play()
+        .then(() => setHasPlayed(true))
+        .catch(err => console.log("Playback still blocked:", err));
+    }
+  }, [hasPlayed, isMuted]);
+
   const handleGenerate = (data) => {
+    attemptPlay();
     setState({ ...data, isViewing: true, isLocked: false });
   };
 
   const handleUnlock = (pin) => {
+    attemptPlay();
     if (!state.dataString) return;
     const result = decodeData(state.dataString, pin);
     if (result.success) {
-      // Merge defaults again to ensure structure
       setState({ ...getInitialState(), ...result.data, isViewing: true, isLocked: false });
       setLockError("");
     } else {
@@ -544,7 +643,6 @@ function App() {
                 return res.json();
             })
             .then(data => {
-                // If data is an encrypted string (from encodeData), enter locked state
                 if (typeof data === 'string' && data.startsWith("enc_")) {
                     setState({ ...getInitialState(), isLocked: true, isViewing: true, dataString: data, isLoading: false });
                 } else {
@@ -556,34 +654,28 @@ function App() {
                 setState(prev => ({ ...prev, isLoading: false, error: "Failed to load journey." }));
             });
     }
-  }, [state.id]);
+  }, [state.id, state.isLoading]);
 
   useEffect(() => {
-    // Audio Context Unlock / Autoplay Handler
-    const attemptPlay = async () => {
-        if (!audioRef.current) return;
-        audioRef.current.volume = 0.5;
-        
-        try {
-            await audioRef.current.play();
-        } catch (err) {
-            // Autoplay blocked. Wait for user interaction.
-            const unlockAudio = () => {
-                if (audioRef.current) {
-                    audioRef.current.play();
-                    ['click', 'touchstart', 'keydown'].forEach(evt => 
-                        document.removeEventListener(evt, unlockAudio)
-                    );
-                }
-            };
-            ['click', 'touchstart', 'keydown'].forEach(evt => 
-                document.addEventListener(evt, unlockAudio)
-            );
-        }
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.4;
+
+    const unlock = () => {
+      attemptPlay();
+      if (hasPlayed) {
+        window.removeEventListener('click', unlock);
+        window.removeEventListener('touchstart', unlock);
+      }
     };
 
-    attemptPlay();
-  }, []);
+    window.addEventListener('click', unlock);
+    window.addEventListener('touchstart', unlock);
+    return () => {
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+    };
+  }, [hasPlayed, isMuted, attemptPlay]);
 
   // Handle Mute Toggle
   useEffect(() => {
@@ -637,7 +729,7 @@ function App() {
             }} 
           />
         ) : (
-          <Generator key="gen" initial={state} onGenerate={handleGenerate} />
+          <Generator key="gen" initial={state} onGenerate={handleGenerate} attemptPlay={attemptPlay} />
         )}
       </AnimatePresence>
     </>
