@@ -256,7 +256,9 @@ function SeasonEnded({ onSuggest, onStartGenerating, onAdmin }) {
           <button onClick={onStartGenerating} className="text-white/40 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors">Still want to create?</button>
         </div>
       </motion.div>
-      <button onClick={onAdmin} className="absolute bottom-8 right-8 text-white/5 hover:text-white/20 transition-colors"><Eye size={16} /></button>
+            <button onClick={onAdmin} className="absolute bottom-8 left-8 text-white/5 hover:text-white/20 transition-colors z-50">
+               <Eye size={16} />
+            </button>
       <footer className="absolute bottom-8 text-center w-full"><p className="text-white/20 font-serif italic tracking-widest text-sm">Created by eb with ❤️</p></footer>
     </div>
   );
